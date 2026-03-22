@@ -25,8 +25,8 @@ const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים"
 
 // --- Gemini AI Helper (THE FINAL FIX) ---
 async function callGemini(morningStyle) {
-  // THE FIX: Added "-latest" to the model name and a cache buster timestamp
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey + "&cb=" + Date.now();
+  // Removed the ?cb= parameter that Google rejected. URL is now clean.
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey;
   
   const payload = {
     contents: [{
@@ -37,7 +37,10 @@ async function callGemini(morningStyle) {
   try {
     const response = await fetch(url, { 
       method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache' // Safe way to bypass browser cache
+      }, 
       body: JSON.stringify(payload) 
     });
     
