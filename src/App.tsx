@@ -23,10 +23,10 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (UPDATED TO GEMINI 3) ---
+// --- Gemini AI Helper (THE EXACT STUDIO DASHBOARD MODEL) ---
 async function callGemini(morningStyle) {
-  // THE FIX: Pointing to the new gemini-3-flash model
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=" + apiKey;
+  // THE FIX: Using the exact string from your AI Studio screenshot
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=" + apiKey;
   
   const payload = {
     contents: [{
