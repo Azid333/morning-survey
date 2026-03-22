@@ -522,7 +522,7 @@ export default function App() {
 
       {/* Main Container */}
       <div 
-        className="absolute h-[100vh] md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white"
+        className="absolute h-full md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white"
         style={{
           left: `${design.boxLeft}vw`,
           right: `${design.boxRight}vw`,
@@ -530,23 +530,27 @@ export default function App() {
         }}
       >
         
-        {/* Left Side (LTR) */}
-        <div style={{ width: `${design.dividerPos}%` }} className="bg-zinc-50 flex flex-col p-6 md:p-10 relative overflow-hidden text-left transition-none" dir="ltr">
+        {/* Left Side (LTR) - Logo & Slogan */}
+        <div 
+          style={{ width: window.innerWidth > 768 ? `${design.dividerPos}%` : '100%' }} 
+          className="bg-zinc-50 flex flex-col p-6 md:p-10 relative overflow-hidden text-left h-1/3 md:h-full flex-shrink-0" 
+          dir="ltr"
+        >
            <div className="absolute inset-0 bg-cover bg-center mix-blend-multiply opacity-25 grayscale pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542310503-68f76378e9f5?q=80&w=2000')" }} />
            
-           <div className="mt-auto relative z-10 w-full overflow-visible">
-              <EditableText id="engTitle" className="font-black tracking-tighter leading-[0.75] mb-6 italic uppercase whitespace-pre-wrap break-words" />
-              <div className="space-y-4 border-t-[6px] border-zinc-900 pt-4 max-w-[90%]">
+           <div className="mt-auto relative z-10 w-full">
+              <EditableText id="engTitle" className="font-black tracking-tighter leading-[0.75] mb-4 md:mb-6 italic uppercase whitespace-pre-wrap break-words" />
+              <div className="space-y-4 border-t-[4px] md:border-t-[6px] border-zinc-900 pt-4 max-w-[90%]">
                  <EditableText id="engSub" className="font-black leading-tight uppercase tracking-tighter break-words" isRem={true} />
               </div>
            </div>
         </div>
 
-        {/* DRAG HANDLE: Internal Divider */}
+        {/* DRAG HANDLE: Internal Divider (Hidden on mobile) */}
         {editMode && (
           <div 
             onPointerDown={(e) => handlePointerDown(e, 'divider')}
-            className="absolute top-0 bottom-0 z-[150] cursor-col-resize flex justify-center items-center group w-8 -ml-4"
+            className="hidden md:flex absolute top-0 bottom-0 z-[150] cursor-col-resize justify-center items-center group w-8 -ml-4"
             style={{ left: `${design.dividerPos}%` }}
           >
             <div className="h-full w-1 bg-black/10 group-hover:bg-black/50 transition-colors shadow-sm" />
@@ -556,8 +560,9 @@ export default function App() {
           </div>
         )}
 
-        {/* Right Side (RTL) */}
-        <div className="flex-1 p-6 md:p-8 lg:p-10 flex flex-col justify-center text-right border-r-[1px] border-zinc-100 relative overflow-y-auto overflow-x-hidden" dir="rtl">
+        {/* Right Side (RTL) - Survey Content */}
+        <div className="flex-1 p-6 md:p-10 flex flex-col justify-center text-right border-r-[1px] border-zinc-100 relative overflow-y-auto overflow-x-hidden min-w-0" dir="rtl">
+          {/* Survey content remains the same inside here */}
           
           {/* STEP 0: Welcome Screen */}
           {step === 0 && (
