@@ -23,13 +23,10 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (CACHE BUSTER VERSION) ---
-async function fetchFreshGeminiTip(morningStyle) {
-  // We add a random timestamp to force the browser to skip its cache
-  const cacheBust = new Date().getTime();
-  
-  // We use the exact, hardcoded V1 endpoint and bypass bundler string issues
-  const aiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + apiKey + "&t=" + cacheBust;
+// --- Gemini AI Helper (THE FINAL FIX) ---
+async function callGemini(morningStyle) {
+  // Switched to v1beta exactly as the Google API error requested
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
   
   const payload = {
     contents: [{
@@ -38,18 +35,19 @@ async function fetchFreshGeminiTip(morningStyle) {
   };
 
   try {
-    const response = await fetch(aiEndpoint, { 
+    const response = await fetch(url, { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify(payload) 
     });
     
-    if (!response.ok) {
-      console.error("HTTP Error:", response.status, await response.text());
+    const result = await response.json();
+    
+    if (result.error) {
+      console.error("API Error:", result.error.message);
       return null;
     }
 
-    const result = await response.json();
     return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
   } catch (err) { 
     console.error("Fetch Error:", err);
@@ -221,7 +219,7 @@ export default function App() {
     const q1ID = QUESTIONS[0].id;
     const styleText = QUESTIONS[0].options.find(o => o.id === answers[q1ID])?.text || "רגיל";
     
-    const result = await fetchFreshGeminiTip(styleText);
+    const result = await callGemini(styleText);
     
     setAiTip(result || "נראה שה-AI קצת עמוס כרגע. נסו שוב!");
     setIsGeneratingTip(false);
