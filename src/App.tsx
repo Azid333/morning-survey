@@ -23,20 +23,29 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (FIXED STABLE ENDPOINT) ---
+// --- Gemini AI Helper (FIXED PRODUCTION URL) ---
 async function callGemini(morningStyle) {
-  // Use the standard v1 production endpoint to avoid 404s
+  // THE FIX: Precise production URL structure for v1
   const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  
   const payload = {
     contents: [{
       parts: [{ text: `אתה קופירייטר שנון במגזין יוקרתי. כתוב טיפ קצר (עד 25 מילים) להורה שהבוקר שלו הוא: "${morningStyle}". הטיפ חייב לכלול עצה פרקטית וקריצה אלגנטית לשירות 'מהפכת הבוקר'. ענה בעברית בלבד ללא מרכאות.` }]
     }]
   };
+
   try {
-    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const response = await fetch(url, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(payload) 
+    });
     const result = await response.json();
     return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (err) { return null; }
+  } catch (err) { 
+    console.error("Gemini Error:", err);
+    return null; 
+  }
 }
 
 const INITIAL_DESIGN = {
@@ -71,7 +80,7 @@ const QUESTIONS = [
 
 const TOTAL_QS = QUESTIONS.length;
 
-// --- Sub-Components ---
+// --- Components ---
 const ColorBlocks = ({ design, setDesign, editMode }) => {
   const absDivPos = design.boxLeft + ((100 - design.boxLeft - design.boxRight) * (design.dividerPos / 100));
   return (
@@ -112,11 +121,11 @@ const AdminDashboard = ({ submissions, onClose, onDelete }) => {
           <button onClick={onClose} className="bg-zinc-900 text-white p-4"><X size={32}/></button>
         </div>
       </div>
-      <table className="w-full text-right">
-        <thead><tr className="bg-zinc-900 text-white"><th className="p-4 text-right font-black uppercase">שם</th><th className="p-4 text-right font-black uppercase">טלפון</th><th className="p-4 text-right font-black uppercase">עיר</th><th className="p-4 text-right"></th></tr></thead>
+      <table className="w-full text-right border-collapse">
+        <thead className="bg-zinc-900 text-white"><tr className="font-black uppercase tracking-widest text-xs"><th className="p-4 text-right">שם</th><th className="p-4 text-right">טלפון</th><th className="p-4 text-right">עיר</th><th className="p-4 text-right"></th></tr></thead>
         <tbody>
           {submissions.map(s => (
-            <tr key={s.id} className="border-b">
+            <tr key={s.id} className="border-b hover:bg-zinc-50 transition-colors">
               <td className="p-4 font-bold">{s.isGuest ? 'אנונימי' : s.lead?.name}</td>
               <td className="p-4">{s.lead?.phone || '-'}</td>
               <td className="p-4">{s.household?.city}</td>
@@ -144,7 +153,7 @@ const EditableText = ({ id, className, design, setDesign, editMode, editingId, s
           <textarea value={el.text} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, text: e.target.value}}}))} className="bg-white/10 p-2 rounded w-40 h-10 resize-none text-xs" />
           <input type="number" step="0.1" value={el.size} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, size: parseFloat(e.target.value)}}}))} className="w-14 bg-white/10 p-1 rounded text-xs text-black" />
           <input type="color" value={el.color} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, color: e.target.value}}}))} className="w-8 h-8 rounded" />
-          <button onClick={() => setEditingId(null)} className="p-2 bg-white/20 rounded-lg transition-colors"><Check size={18}/></button>
+          <button onClick={() => setEditingId(null)} className="p-2 hover:bg-white/10 rounded-lg"><Check size={18}/></button>
         </div>
       )}
     </div>
@@ -179,12 +188,9 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    // We added a safety try/catch here for permissions
-    try {
-        return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), (snap) => {
-            setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        }, (err) => console.error("Firestore Listener Permission Error:", err));
-    } catch (e) { console.error(e); }
+    return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), (snap) => {
+      setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => console.error("Firestore error:", err));
   }, [user]);
 
   const save = async (data) => {
@@ -261,7 +267,7 @@ export default function App() {
 
         {editMode && <div onPointerDown={(e) => {e.stopPropagation(); setDragState('divider');}} className="absolute top-0 bottom-0 z-[150] cursor-col-resize hidden md:flex justify-center items-center w-8 -ml-4" style={{ left: `${design.dividerPos}%` }}><div className="h-full w-1 bg-black/20" /></div>}
 
-        <div className="flex-1 p-6 md:p-12 flex flex-col justify-center text-right border-r border-zinc-100 relative overflow-y-auto min-w-0 transition-all" dir="rtl">
+        <div className="flex-1 p-6 md:p-12 flex flex-col justify-center text-right border-r border-zinc-100 relative overflow-y-auto min-w-0" dir="rtl">
           
           {step === 0 && (
             <div className="animate-in fade-in slide-in-from-right-12 duration-1000">
@@ -291,7 +297,7 @@ export default function App() {
                       <div key={child.id} className="flex gap-3 bg-zinc-50 border-r-4 border-zinc-100 p-3">
                         <input required type="number" min="6" max="18" placeholder="גיל" className="bg-transparent border-b border-zinc-200 w-32 font-bold text-right text-black" value={child.age} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, age: e.target.value} : c)}))} />
                         <input required placeholder="שם בית ספר" className="bg-transparent border-b border-zinc-200 w-full font-bold text-right text-black" value={child.school} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, school: e.target.value} : c)}))} />
-                        {household.children.length > 1 && (<button type="button" onClick={() => setHousehold(h => ({...h, children: h.children.filter(c => c.id !== child.id)}))} className="text-zinc-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>)}
+                        {household.children.length > 1 && (<button type="button" onClick={() => setHousehold(h => ({...h, children: h.children.filter(c => c.id !== child.id)}))}><Trash2 size={16}/></button>)}
                       </div>
                     ))}
                   </div>
