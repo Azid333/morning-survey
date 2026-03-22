@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { 
   ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check, MoveHorizontal, Download 
 } from 'lucide-react';
@@ -23,8 +23,9 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (v1 Stable) ---
+// --- Gemini AI Helper (FIXED STABLE ENDPOINT) ---
 async function callGemini(morningStyle) {
+  // Use the standard v1 production endpoint
   const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{
@@ -32,18 +33,10 @@ async function callGemini(morningStyle) {
     }]
   };
   try {
-    const response = await fetch(url, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(payload) 
-    });
+    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const result = await response.json();
-    console.log("AI Response:", result); // If it fails, check the console!
     return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (err) { 
-    console.error("AI Fetch Error:", err);
-    return null; 
-  }
+  } catch (err) { return null; }
 }
 
 const INITIAL_DESIGN = {
@@ -120,14 +113,14 @@ const AdminDashboard = ({ submissions, onClose, onDelete }) => {
         </div>
       </div>
       <table className="w-full text-right">
-        <thead><tr className="bg-zinc-900 text-white"><th className="p-4">שם</th><th className="p-4">טלפון</th><th className="p-4">עיר</th><th className="p-4"></th></tr></thead>
+        <thead><tr className="bg-zinc-900 text-white"><th className="p-4 text-right">שם</th><th className="p-4 text-right">טלפון</th><th className="p-4 text-right">עיר</th><th className="p-4 text-right"></th></tr></thead>
         <tbody>
           {submissions.map(s => (
             <tr key={s.id} className="border-b">
               <td className="p-4 font-bold">{s.isGuest ? 'אנונימי' : s.lead?.name}</td>
               <td className="p-4">{s.lead?.phone || '-'}</td>
               <td className="p-4">{s.household?.city}</td>
-              <td className="p-4"><button onClick={() => onDelete(s.id)} className="text-red-500"><Trash2 size={18}/></button></td>
+              <td className="p-4"><button onClick={() => onDelete(s.id)} className="text-red-500 hover:scale-110 transition-transform"><Trash2 size={18}/></button></td>
             </tr>
           ))}
         </tbody>
@@ -149,7 +142,7 @@ const EditableText = ({ id, className, design, setDesign, editMode, editingId, s
       {isSelected && editMode && (
         <div className="absolute top-full left-0 mt-3 bg-zinc-950 text-white p-3 rounded-xl z-[200] flex gap-4 items-center animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
           <textarea value={el.text} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, text: e.target.value}}}))} className="bg-white/10 p-2 rounded w-40 h-10 resize-none text-xs" />
-          <input type="number" step="0.1" value={el.size} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, size: parseFloat(e.target.value)}}}))} className="w-14 bg-white/10 p-1 rounded text-xs" />
+          <input type="number" step="0.1" value={el.size} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, size: parseFloat(e.target.value)}}}))} className="w-14 bg-white/10 p-1 rounded text-xs text-black" />
           <input type="color" value={el.color} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, color: e.target.value}}}))} className="w-8 h-8 rounded" />
           <button onClick={() => setEditingId(null)}><Check size={18}/></button>
         </div>
@@ -231,16 +224,17 @@ export default function App() {
   return (
     <div onClick={() => setEditingId(null)} className="min-h-screen bg-transparent flex items-center justify-center font-sans overflow-hidden relative">
       <ColorBlocks design={design} setDesign={setDesign} editMode={editMode} />
-      <div onClick={() => setSecretClicks(s => s + 1 >= 5 ? (setShowPinPrompt(true), 0) : s + 1)} className="fixed bottom-0 left-0 w-12 h-12 z-[9999]" />
+      <div onClick={() => setSecretClicks(s => s + 1 >= 5 ? (setShowPinPrompt(true), 0) : s + 1)} className="fixed bottom-0 left-0 w-12 h-12 z-[9999] cursor-default" />
 
       {showPinPrompt && (
         <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center" dir="rtl">
-          <div className="bg-white p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-2xl font-black mb-4 italic">Admin_Access.</h3>
+          <div className="bg-white p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 text-right">
+            <h3 className="text-2xl font-black mb-4 italic uppercase">Admin_Access.</h3>
             <form onSubmit={e => { e.preventDefault(); if (pinInput === '2002') { setIsAdminUnlocked(true); setShowPinPrompt(false); } }}>
               <input type="password" autoFocus className="w-full p-4 bg-zinc-50 border-b-4 mb-4 text-center text-3xl outline-none" value={pinInput} onChange={e => setPinInput(e.target.value)} />
               <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black uppercase">Unlock</button>
             </form>
+            <button onClick={() => setShowPinPrompt(false)} className="mt-4 w-full text-[10px] uppercase font-bold text-zinc-400">Cancel</button>
           </div>
         </div>
       )}
@@ -254,7 +248,6 @@ export default function App() {
 
       <div className="fixed inset-0 m-auto h-[100vh] md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white transition-all duration-300" style={{ left: `${design.boxLeft}vw`, right: `${design.boxRight}vw` }}>
         
-        {/* Left Side */}
         <div style={{ width: `${design.dividerPos}%` }} className="bg-zinc-50 flex flex-col p-6 md:p-10 relative overflow-hidden h-1/3 md:h-full flex-shrink-0" dir="ltr">
            <div className="absolute inset-0 bg-cover bg-center opacity-25 grayscale pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542310503-68f76378e9f5?q=80&w=2000')" }} />
            <div className="mt-auto relative z-10 w-full">
@@ -285,7 +278,7 @@ export default function App() {
                <form onSubmit={e => { e.preventDefault(); setStep(2); }} className="space-y-4">
                   <div className="bg-zinc-50 border-r-4 border-[#00A896] p-4 text-right">
                     <label className="block text-xs font-black uppercase tracking-widest text-[#00A896] mb-1">עיר מגורים</label>
-                    <select required className="bg-transparent border-b-2 border-zinc-200 outline-none font-bold w-full py-1 text-lg" value={household.city} onChange={e => setHousehold({...household, city: e.target.value})}>
+                    <select required className="bg-transparent border-b-2 border-zinc-200 outline-none font-bold w-full py-1 text-lg text-black" value={household.city} onChange={e => setHousehold({...household, city: e.target.value})}>
                       <option value="">בחר עיר...</option>
                       {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -293,8 +286,8 @@ export default function App() {
                   <div className="space-y-3">
                     {household.children.map(child => (
                       <div key={child.id} className="flex gap-3 bg-zinc-50 border-r-4 border-zinc-100 p-3">
-                        <input required type="number" min="6" max="18" placeholder="גיל" className="bg-transparent border-b border-zinc-200 w-32 font-bold text-right" value={child.age} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, age: e.target.value} : c)}))} />
-                        <input required placeholder="שם בית ספר" className="bg-transparent border-b border-zinc-200 w-full font-bold text-right" value={child.school} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, school: e.target.value} : c)}))} />
+                        <input required type="number" min="6" max="18" placeholder="גיל" className="bg-transparent border-b border-zinc-200 w-32 font-bold text-right text-black" value={child.age} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, age: e.target.value} : c)}))} />
+                        <input required placeholder="שם בית ספר" className="bg-transparent border-b border-zinc-200 w-full font-bold text-right text-black" value={child.school} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, school: e.target.value} : c)}))} />
                         {household.children.length > 1 && (<button type="button" onClick={() => setHousehold(h => ({...h, children: h.children.filter(c => c.id !== child.id)}))}><Trash2 size={16}/></button>)}
                       </div>
                     ))}
@@ -302,7 +295,7 @@ export default function App() {
                   <button type="button" onClick={() => setHousehold(h => ({...h, children: [...h.children, {id: Date.now(), age: '', school: ''}]}))} className="text-[#E85D75] font-bold text-xs uppercase tracking-widest">+ ADD_CHILD</button>
                   <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black text-xl flex items-center justify-center gap-3">CONTINUE <ArrowRight size={20} /></button>
                </form>
-               <button onClick={() => setStep(0)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900">[ BACK ]</button>
+               <button onClick={() => setStep(0)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900 transition-colors">[ BACK ]</button>
             </div>
           )}
 
@@ -313,7 +306,7 @@ export default function App() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{QUESTIONS[step-2].options.map(opt => (
                  <button key={opt.id} onClick={() => {setAnswers({...answers, [QUESTIONS[step-2].id]: opt.id}); setTimeout(() => setStep(step + 1), 200);}} className="p-4 md:p-5 text-right border-r-[8px] bg-zinc-50 border-zinc-100 hover:border-zinc-900 hover:bg-zinc-900 hover:text-white transition-all font-black text-lg">{opt.text}</button>
                ))}</div>
-               <button onClick={() => setStep(step - 1)} className="mt-8 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900">[ BACK ]</button>
+               <button onClick={() => setStep(step - 1)} className="mt-8 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900 transition-colors">[ BACK ]</button>
             </div>
           )}
 
@@ -321,21 +314,21 @@ export default function App() {
             <div className="w-full max-w-3xl mx-auto text-right">
                <h2 className="text-5xl font-black italic mb-3 uppercase tracking-tighter">THE_JOIN.</h2>
                <form onSubmit={e => { e.preventDefault(); save({ answers, lead: leadInfo, isGuest: false }); }} className="space-y-4">
-                  <input required placeholder="שם מלא (פרטי ומשפחה)" pattern="^\s*\S+\s+\S+.*$" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic text-right outline-none" value={leadInfo.name} onChange={e => setLeadInfo({...leadInfo, name: e.target.value})} />
-                  <input required type="tel" pattern="^05\d-?\d{7}$" placeholder="טלפון (05X-XXXXXXX)" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic text-right outline-none" value={leadInfo.phone} onChange={e => setLeadInfo({...leadInfo, phone: e.target.value})} />
-                  <input required type="email" placeholder="אימייל" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic text-right outline-none" value={leadInfo.email} onChange={e => setLeadInfo({...leadInfo, email: e.target.value})} />
+                  <input required placeholder="שם מלא (פרטי ומשפחה)" pattern="^\s*\S+\s+\S+.*$" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic text-right outline-none text-black" value={leadInfo.name} onChange={e => setLeadInfo({...leadInfo, name: e.target.value})} />
+                  <input required type="tel" pattern="^05\d-?\d{7}$" placeholder="טלפון (05X-XXXXXXX)" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic text-right outline-none text-black" value={leadInfo.phone} onChange={e => setLeadInfo({...leadInfo, phone: e.target.value})} />
+                  <input required type="email" placeholder="אימייל" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic text-right outline-none text-black" value={leadInfo.email} onChange={e => setLeadInfo({...leadInfo, email: e.target.value})} />
                   <button className="w-full py-5 bg-zinc-900 text-white font-black text-2xl italic hover:bg-[#E85D75] shadow-xl uppercase transition-all">JOIN_ALPHA_PILOT</button>
                </form>
                <button onClick={() => save({ answers, isGuest: true })} className="mt-6 text-zinc-300 text-[10px] font-black uppercase underline block hover:text-zinc-900 transition-colors">Continue anonymously</button>
-               <button onClick={() => setStep(TOTAL_QS + 1)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900">[ BACK ]</button>
+               <button onClick={() => setStep(TOTAL_QS + 1)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900 transition-colors">[ BACK ]</button>
             </div>
           )}
 
           {step === TOTAL_QS + 3 && (
             <div className="h-full flex flex-col justify-center text-right">
-               <h2 className="text-[6vw] md:text-[5vw] font-black italic text-[#00A896] uppercase tracking-tighter">PROFILE_READY_</h2>
-               <div className="flex flex-col gap-6 pt-6">
-                  <div><p className="text-4xl font-black mb-2 uppercase italic text-right">{answers[1] === 'A' || answers[1] === 'D' ? 'ZEN_MODEL' : 'PULSE_MODEL'}</p></div>
+               <h2 className="text-[6vw] md:text-[5vw] font-black italic text-[#00A896] uppercase tracking-tighter leading-none mb-4">PROFILE_READY_</h2>
+               <div className="flex flex-col gap-6 pt-2">
+                  <p className="text-4xl font-black mb-2 uppercase italic text-right text-zinc-900">{answers[1] === 'A' || answers[1] === 'D' ? 'ZEN_MODEL' : 'PULSE_MODEL'}</p>
                   <div className="w-full bg-zinc-900 text-white p-6 rounded-xl shadow-xl min-h-[140px] flex flex-col justify-center relative overflow-hidden">
                      {!aiTip ? (
                        <button onClick={generateTip} disabled={isGeneratingTip} className="w-full py-4 bg-[#F9A620]/10 text-[#F9A620] font-black uppercase border border-[#F9A620]/30 rounded-lg hover:bg-[#F9A620] hover:text-black transition-all">
