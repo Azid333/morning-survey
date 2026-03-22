@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { 
   ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check, MoveHorizontal, Download 
 } from 'lucide-react';
@@ -25,7 +25,7 @@ const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים"
 
 // --- Gemini AI Helper (FIXED STABLE ENDPOINT) ---
 async function callGemini(morningStyle) {
-  // Use the standard v1 production endpoint
+  // Use the standard v1 production endpoint to avoid 404s
   const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{
@@ -76,14 +76,14 @@ const ColorBlocks = ({ design, setDesign, editMode }) => {
   const absDivPos = design.boxLeft + ((100 - design.boxLeft - design.boxRight) * (design.dividerPos / 100));
   return (
     <div className="fixed inset-0 z-0 flex overflow-hidden pointer-events-none">
-      <div style={{ width: `${absDivPos}vw`, backgroundColor: design.bgColors[0] }} className="h-full relative pointer-events-auto">
-        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[0]} onChange={e => setDesign(d => ({...d, bgColors: [e.target.value, d.bgColors[1], d.bgColors[2]]}))}/></label>}
+      <div style={{ width: `${absDivPos}vw`, backgroundColor: design.bgColors[0] }} className="h-full relative pointer-events-auto transition-none">
+        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg backdrop-blur-sm transition-all"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[0]} onChange={e => setDesign(d => ({...d, bgColors: [e.target.value, d.bgColors[1], d.bgColors[2]]}))}/></label>}
       </div>
-      <div style={{ width: '30%', backgroundColor: design.bgColors[1] }} className="h-full relative pointer-events-auto">
-        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[1]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], e.target.value, d.bgColors[2]]}))}/></label>}
+      <div style={{ width: '30%', backgroundColor: design.bgColors[1] }} className="h-full relative pointer-events-auto transition-none">
+        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg backdrop-blur-sm transition-all"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[1]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], e.target.value, d.bgColors[2]]}))}/></label>}
       </div>
-      <div className="flex-1 h-full relative pointer-events-auto" style={{ backgroundColor: design.bgColors[2] }}>
-        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[2]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], d.bgColors[1], e.target.value]}))}/></label>}
+      <div className="flex-1 h-full relative pointer-events-auto transition-none" style={{ backgroundColor: design.bgColors[2] }}>
+        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg backdrop-blur-sm transition-all"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[2]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], d.bgColors[1], e.target.value]}))}/></label>}
       </div>
     </div>
   );
@@ -113,7 +113,7 @@ const AdminDashboard = ({ submissions, onClose, onDelete }) => {
         </div>
       </div>
       <table className="w-full text-right">
-        <thead><tr className="bg-zinc-900 text-white"><th className="p-4 text-right">שם</th><th className="p-4 text-right">טלפון</th><th className="p-4 text-right">עיר</th><th className="p-4 text-right"></th></tr></thead>
+        <thead><tr className="bg-zinc-900 text-white"><th className="p-4 text-right font-black uppercase">שם</th><th className="p-4 text-right font-black uppercase">טלפון</th><th className="p-4 text-right font-black uppercase">עיר</th><th className="p-4 text-right"></th></tr></thead>
         <tbody>
           {submissions.map(s => (
             <tr key={s.id} className="border-b">
@@ -144,7 +144,7 @@ const EditableText = ({ id, className, design, setDesign, editMode, editingId, s
           <textarea value={el.text} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, text: e.target.value}}}))} className="bg-white/10 p-2 rounded w-40 h-10 resize-none text-xs" />
           <input type="number" step="0.1" value={el.size} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, size: parseFloat(e.target.value)}}}))} className="w-14 bg-white/10 p-1 rounded text-xs text-black" />
           <input type="color" value={el.color} onChange={e => setDesign(d => ({...d, elements: {...d.elements, [id]: {...el, color: e.target.value}}}))} className="w-8 h-8 rounded" />
-          <button onClick={() => setEditingId(null)}><Check size={18}/></button>
+          <button onClick={() => setEditingId(null)} className="p-2 bg-white/20 rounded-lg transition-colors"><Check size={18}/></button>
         </div>
       )}
     </div>
@@ -179,9 +179,12 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), (snap) => {
-      setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    // We added a safety try/catch here for permissions
+    try {
+        return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), (snap) => {
+            setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }, (err) => console.error("Firestore Listener Permission Error:", err));
+    } catch (e) { console.error(e); }
   }, [user]);
 
   const save = async (data) => {
@@ -229,10 +232,10 @@ export default function App() {
       {showPinPrompt && (
         <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center" dir="rtl">
           <div className="bg-white p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 text-right">
-            <h3 className="text-2xl font-black mb-4 italic uppercase">Admin_Access.</h3>
+            <h3 className="text-2xl font-black mb-4 italic uppercase tracking-tighter">Admin_Access.</h3>
             <form onSubmit={e => { e.preventDefault(); if (pinInput === '2002') { setIsAdminUnlocked(true); setShowPinPrompt(false); } }}>
               <input type="password" autoFocus className="w-full p-4 bg-zinc-50 border-b-4 mb-4 text-center text-3xl outline-none" value={pinInput} onChange={e => setPinInput(e.target.value)} />
-              <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black uppercase">Unlock</button>
+              <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black uppercase tracking-widest transition-colors hover:bg-[#00A896]">Unlock</button>
             </form>
             <button onClick={() => setShowPinPrompt(false)} className="mt-4 w-full text-[10px] uppercase font-bold text-zinc-400">Cancel</button>
           </div>
@@ -241,8 +244,8 @@ export default function App() {
 
       {editMode && (
         <>
-          <div onPointerDown={(e) => {e.stopPropagation(); setDragState('boxLeft');}} className="absolute top-0 bottom-0 z-[150] cursor-ew-resize w-6 -ml-3" style={{ left: `${design.boxLeft}vw` }}><div className="h-full w-2 bg-black/10" /></div>
-          <div onPointerDown={(e) => {e.stopPropagation(); setDragState('boxRight');}} className="absolute top-0 bottom-0 z-[150] cursor-ew-resize w-6 -mr-3" style={{ right: `${design.boxRight}vw` }}><div className="h-full w-2 bg-black/10" /></div>
+          <div onPointerDown={(e) => {e.stopPropagation(); setDragState('boxLeft');}} className="absolute top-0 bottom-0 z-[150] cursor-ew-resize w-6 -ml-3" style={{ left: `${design.boxLeft}vw` }}><div className="h-full w-2 bg-black/10 transition-colors hover:bg-black/30" /></div>
+          <div onPointerDown={(e) => {e.stopPropagation(); setDragState('boxRight');}} className="absolute top-0 bottom-0 z-[150] cursor-ew-resize w-6 -mr-3" style={{ right: `${design.boxRight}vw` }}><div className="h-full w-2 bg-black/10 transition-colors hover:bg-black/30" /></div>
         </>
       )}
 
@@ -258,7 +261,7 @@ export default function App() {
 
         {editMode && <div onPointerDown={(e) => {e.stopPropagation(); setDragState('divider');}} className="absolute top-0 bottom-0 z-[150] cursor-col-resize hidden md:flex justify-center items-center w-8 -ml-4" style={{ left: `${design.dividerPos}%` }}><div className="h-full w-1 bg-black/20" /></div>}
 
-        <div className="flex-1 p-6 md:p-12 flex flex-col justify-center text-right border-r border-zinc-100 relative overflow-y-auto min-w-0" dir="rtl">
+        <div className="flex-1 p-6 md:p-12 flex flex-col justify-center text-right border-r border-zinc-100 relative overflow-y-auto min-w-0 transition-all" dir="rtl">
           
           {step === 0 && (
             <div className="animate-in fade-in slide-in-from-right-12 duration-1000">
@@ -288,12 +291,12 @@ export default function App() {
                       <div key={child.id} className="flex gap-3 bg-zinc-50 border-r-4 border-zinc-100 p-3">
                         <input required type="number" min="6" max="18" placeholder="גיל" className="bg-transparent border-b border-zinc-200 w-32 font-bold text-right text-black" value={child.age} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, age: e.target.value} : c)}))} />
                         <input required placeholder="שם בית ספר" className="bg-transparent border-b border-zinc-200 w-full font-bold text-right text-black" value={child.school} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, school: e.target.value} : c)}))} />
-                        {household.children.length > 1 && (<button type="button" onClick={() => setHousehold(h => ({...h, children: h.children.filter(c => c.id !== child.id)}))}><Trash2 size={16}/></button>)}
+                        {household.children.length > 1 && (<button type="button" onClick={() => setHousehold(h => ({...h, children: h.children.filter(c => c.id !== child.id)}))} className="text-zinc-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>)}
                       </div>
                     ))}
                   </div>
-                  <button type="button" onClick={() => setHousehold(h => ({...h, children: [...h.children, {id: Date.now(), age: '', school: ''}]}))} className="text-[#E85D75] font-bold text-xs uppercase tracking-widest">+ ADD_CHILD</button>
-                  <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black text-xl flex items-center justify-center gap-3">CONTINUE <ArrowRight size={20} /></button>
+                  <button type="button" onClick={() => setHousehold(h => ({...h, children: [...h.children, {id: Date.now(), age: '', school: ''}]}))} className="text-[#E85D75] font-bold text-xs uppercase tracking-widest hover:text-zinc-900 transition-colors">+ ADD_CHILD</button>
+                  <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black text-xl flex items-center justify-center gap-3 shadow-lg hover:bg-[#00A896] transition-colors">CONTINUE <ArrowRight size={20} /></button>
                </form>
                <button onClick={() => setStep(0)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900 transition-colors">[ BACK ]</button>
             </div>
@@ -326,9 +329,9 @@ export default function App() {
 
           {step === TOTAL_QS + 3 && (
             <div className="h-full flex flex-col justify-center text-right">
-               <h2 className="text-[6vw] md:text-[5vw] font-black italic text-[#00A896] uppercase tracking-tighter leading-none mb-4">PROFILE_READY_</h2>
+               <h2 className="text-[6vw] md:text-[5vw] font-black italic text-[#00A896] uppercase tracking-tighter leading-none mb-4 tracking-tighter">PROFILE_READY_</h2>
                <div className="flex flex-col gap-6 pt-2">
-                  <p className="text-4xl font-black mb-2 uppercase italic text-right text-zinc-900">{answers[1] === 'A' || answers[1] === 'D' ? 'ZEN_MODEL' : 'PULSE_MODEL'}</p>
+                  <div><p className="text-4xl font-black mb-2 uppercase italic text-right text-zinc-900">{answers[1] === 'A' || answers[1] === 'D' ? 'ZEN_MODEL' : 'PULSE_MODEL'}</p></div>
                   <div className="w-full bg-zinc-900 text-white p-6 rounded-xl shadow-xl min-h-[140px] flex flex-col justify-center relative overflow-hidden">
                      {!aiTip ? (
                        <button onClick={generateTip} disabled={isGeneratingTip} className="w-full py-4 bg-[#F9A620]/10 text-[#F9A620] font-black uppercase border border-[#F9A620]/30 rounded-lg hover:bg-[#F9A620] hover:text-black transition-all">
@@ -345,7 +348,7 @@ export default function App() {
       </div>
 
       {isAdminUnlocked && (
-        <div className="fixed bottom-6 right-6 z-[300] flex flex-col items-end gap-3">
+        <div className="fixed bottom-6 right-6 z-[300] flex flex-col items-end gap-3 animate-in slide-in-from-bottom">
           <button onClick={() => { setEditMode(!editMode); setEditingId(null); }} className={`p-4 rounded-full shadow-2xl transition-all ${editMode ? 'bg-[#E85D75] text-white scale-110' : 'bg-white text-zinc-900 hover:bg-zinc-100'}`}><Settings size={24} /></button>
           <button onClick={() => setShowAdmin(true)} className="p-4 rounded-full bg-white shadow-2xl text-zinc-900 hover:bg-zinc-100 transition-all"><LayoutDashboard size={24} /></button>
         </div>
