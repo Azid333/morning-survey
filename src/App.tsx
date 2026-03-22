@@ -23,19 +23,27 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper ---
+// --- Gemini AI Helper (v1 Stable) ---
 async function callGemini(morningStyle) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{
       parts: [{ text: `אתה קופירייטר שנון במגזין יוקרתי. כתוב טיפ קצר (עד 25 מילים) להורה שהבוקר שלו הוא: "${morningStyle}". הטיפ חייב לכלול עצה פרקטית וקריצה אלגנטית לשירות 'מהפכת הבוקר'. ענה בעברית בלבד ללא מרכאות.` }]
     }]
   };
   try {
-    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const response = await fetch(url, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload) 
+    });
     const result = await response.json();
+    console.log("AI Response:", result); // If it fails, check the console!
     return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (err) { return null; }
+  } catch (err) { 
+    console.error("AI Fetch Error:", err);
+    return null; 
+  }
 }
 
 const INITIAL_DESIGN = {
@@ -70,19 +78,19 @@ const QUESTIONS = [
 
 const TOTAL_QS = QUESTIONS.length;
 
-// --- Components ---
+// --- Sub-Components ---
 const ColorBlocks = ({ design, setDesign, editMode }) => {
   const absDivPos = design.boxLeft + ((100 - design.boxLeft - design.boxRight) * (design.dividerPos / 100));
   return (
     <div className="fixed inset-0 z-0 flex overflow-hidden pointer-events-none">
-      <div style={{ width: `${absDivPos}vw`, backgroundColor: design.bgColors[0] }} className="h-full relative pointer-events-auto transition-none">
-        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg backdrop-blur-sm"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[0]} onChange={e => setDesign(d => ({...d, bgColors: [e.target.value, d.bgColors[1], d.bgColors[2]]}))}/></label>}
+      <div style={{ width: `${absDivPos}vw`, backgroundColor: design.bgColors[0] }} className="h-full relative pointer-events-auto">
+        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[0]} onChange={e => setDesign(d => ({...d, bgColors: [e.target.value, d.bgColors[1], d.bgColors[2]]}))}/></label>}
       </div>
-      <div style={{ width: '30%', backgroundColor: design.bgColors[1] }} className="h-full relative pointer-events-auto transition-none">
-        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg backdrop-blur-sm"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[1]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], e.target.value, d.bgColors[2]]}))}/></label>}
+      <div style={{ width: '30%', backgroundColor: design.bgColors[1] }} className="h-full relative pointer-events-auto">
+        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[1]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], e.target.value, d.bgColors[2]]}))}/></label>}
       </div>
-      <div className="flex-1 h-full relative pointer-events-auto transition-none" style={{ backgroundColor: design.bgColors[2] }}>
-        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg backdrop-blur-sm"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[2]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], d.bgColors[1], e.target.value]}))}/></label>}
+      <div className="flex-1 h-full relative pointer-events-auto" style={{ backgroundColor: design.bgColors[2] }}>
+        {editMode && <label className="absolute top-6 left-6 cursor-pointer p-3 bg-white/20 rounded-full flex shadow-lg"><Palette size={18} className="text-white"/><input type="color" className="sr-only" value={design.bgColors[2]} onChange={e => setDesign(d => ({...d, bgColors: [d.bgColors[0], d.bgColors[1], e.target.value]}))}/></label>}
       </div>
     </div>
   );
@@ -119,7 +127,7 @@ const AdminDashboard = ({ submissions, onClose, onDelete }) => {
               <td className="p-4 font-bold">{s.isGuest ? 'אנונימי' : s.lead?.name}</td>
               <td className="p-4">{s.lead?.phone || '-'}</td>
               <td className="p-4">{s.household?.city}</td>
-              <td className="p-4"><button onClick={() => onDelete(s.id)} className="text-red-500 hover:scale-110 transition-transform"><Trash2 size={18}/></button></td>
+              <td className="p-4"><button onClick={() => onDelete(s.id)} className="text-red-500"><Trash2 size={18}/></button></td>
             </tr>
           ))}
         </tbody>
@@ -199,7 +207,6 @@ export default function App() {
     setIsGeneratingTip(true);
     const q1ID = QUESTIONS[0].id;
     const styleText = QUESTIONS[0].options.find(o => o.id === answers[q1ID])?.text || "רגיל";
-    const prompt = `כתוב טיפ שנון להורה שהבוקר שלו הוא "${styleText}". עד 25 מילים, כולל עצה להתארגנות וקריצה אלגנטית לשירות 'מהפכת הבוקר'. ענה בעברית בלבד.`;
     const result = await callGemini(styleText);
     setAiTip(result || "נראה שה-AI קצת עמוס כרגע. נסו שוב!");
     setIsGeneratingTip(false);
@@ -224,17 +231,16 @@ export default function App() {
   return (
     <div onClick={() => setEditingId(null)} className="min-h-screen bg-transparent flex items-center justify-center font-sans overflow-hidden relative">
       <ColorBlocks design={design} setDesign={setDesign} editMode={editMode} />
-      <div onClick={() => setSecretClicks(s => s + 1 >= 5 ? (setShowPinPrompt(true), 0) : s + 1)} className="fixed bottom-0 left-0 w-12 h-12 z-[9999] cursor-default" />
+      <div onClick={() => setSecretClicks(s => s + 1 >= 5 ? (setShowPinPrompt(true), 0) : s + 1)} className="fixed bottom-0 left-0 w-12 h-12 z-[9999]" />
 
       {showPinPrompt && (
         <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center" dir="rtl">
           <div className="bg-white p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-2xl font-black mb-4 italic uppercase">Admin_Access.</h3>
+            <h3 className="text-2xl font-black mb-4 italic">Admin_Access.</h3>
             <form onSubmit={e => { e.preventDefault(); if (pinInput === '2002') { setIsAdminUnlocked(true); setShowPinPrompt(false); } }}>
               <input type="password" autoFocus className="w-full p-4 bg-zinc-50 border-b-4 mb-4 text-center text-3xl outline-none" value={pinInput} onChange={e => setPinInput(e.target.value)} />
               <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black uppercase">Unlock</button>
             </form>
-            <button onClick={() => setShowPinPrompt(false)} className="mt-4 w-full text-[10px] uppercase font-bold text-zinc-400">Cancel</button>
           </div>
         </div>
       )}
@@ -248,7 +254,7 @@ export default function App() {
 
       <div className="fixed inset-0 m-auto h-[100vh] md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white transition-all duration-300" style={{ left: `${design.boxLeft}vw`, right: `${design.boxRight}vw` }}>
         
-        {/* Left branding */}
+        {/* Left Side */}
         <div style={{ width: `${design.dividerPos}%` }} className="bg-zinc-50 flex flex-col p-6 md:p-10 relative overflow-hidden h-1/3 md:h-full flex-shrink-0" dir="ltr">
            <div className="absolute inset-0 bg-cover bg-center opacity-25 grayscale pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542310503-68f76378e9f5?q=80&w=2000')" }} />
            <div className="mt-auto relative z-10 w-full">
@@ -259,7 +265,6 @@ export default function App() {
 
         {editMode && <div onPointerDown={(e) => {e.stopPropagation(); setDragState('divider');}} className="absolute top-0 bottom-0 z-[150] cursor-col-resize hidden md:flex justify-center items-center w-8 -ml-4" style={{ left: `${design.dividerPos}%` }}><div className="h-full w-1 bg-black/20" /></div>}
 
-        {/* Right Content */}
         <div className="flex-1 p-6 md:p-12 flex flex-col justify-center text-right border-r border-zinc-100 relative overflow-y-auto min-w-0" dir="rtl">
           
           {step === 0 && (
@@ -279,7 +284,7 @@ export default function App() {
                <h2 className="text-4xl md:text-5xl font-black italic mb-3 uppercase tracking-tighter">THE_CREW.</h2>
                <form onSubmit={e => { e.preventDefault(); setStep(2); }} className="space-y-4">
                   <div className="bg-zinc-50 border-r-4 border-[#00A896] p-4 text-right">
-                    <label className="block text-xs font-black uppercase text-[#00A896] mb-1">עיר מגורים</label>
+                    <label className="block text-xs font-black uppercase tracking-widest text-[#00A896] mb-1">עיר מגורים</label>
                     <select required className="bg-transparent border-b-2 border-zinc-200 outline-none font-bold w-full py-1 text-lg" value={household.city} onChange={e => setHousehold({...household, city: e.target.value})}>
                       <option value="">בחר עיר...</option>
                       {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -294,10 +299,10 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-                  <button type="button" onClick={() => setHousehold(h => ({...h, children: [...h.children, {id: Date.now(), age: '', school: ''}]}))} className="text-[#E85D75] font-bold text-xs uppercase">+ ADD_CHILD</button>
+                  <button type="button" onClick={() => setHousehold(h => ({...h, children: [...h.children, {id: Date.now(), age: '', school: ''}]}))} className="text-[#E85D75] font-bold text-xs uppercase tracking-widest">+ ADD_CHILD</button>
                   <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black text-xl flex items-center justify-center gap-3">CONTINUE <ArrowRight size={20} /></button>
                </form>
-               <button onClick={() => setStep(0)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900 transition-colors">[ BACK ]</button>
+               <button onClick={() => setStep(0)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900">[ BACK ]</button>
             </div>
           )}
 
@@ -308,7 +313,7 @@ export default function App() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{QUESTIONS[step-2].options.map(opt => (
                  <button key={opt.id} onClick={() => {setAnswers({...answers, [QUESTIONS[step-2].id]: opt.id}); setTimeout(() => setStep(step + 1), 200);}} className="p-4 md:p-5 text-right border-r-[8px] bg-zinc-50 border-zinc-100 hover:border-zinc-900 hover:bg-zinc-900 hover:text-white transition-all font-black text-lg">{opt.text}</button>
                ))}</div>
-               <button onClick={() => setStep(step - 1)} className="mt-8 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900 transition-colors">[ BACK ]</button>
+               <button onClick={() => setStep(step - 1)} className="mt-8 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900">[ BACK ]</button>
             </div>
           )}
 
@@ -322,7 +327,7 @@ export default function App() {
                   <button className="w-full py-5 bg-zinc-900 text-white font-black text-2xl italic hover:bg-[#E85D75] shadow-xl uppercase transition-all">JOIN_ALPHA_PILOT</button>
                </form>
                <button onClick={() => save({ answers, isGuest: true })} className="mt-6 text-zinc-300 text-[10px] font-black uppercase underline block hover:text-zinc-900 transition-colors">Continue anonymously</button>
-               <button onClick={() => setStep(TOTAL_QS + 1)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900 transition-colors">[ BACK ]</button>
+               <button onClick={() => setStep(TOTAL_QS + 1)} className="mt-4 text-zinc-300 text-[10px] uppercase font-black hover:text-zinc-900">[ BACK ]</button>
             </div>
           )}
 
