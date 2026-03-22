@@ -23,10 +23,10 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (FIXED PRODUCTION URL) ---
+// --- Gemini AI Helper (GUARANTEED ENDPOINT) ---
 async function callGemini(morningStyle) {
-  // THE FIX: Precise production URL structure for v1
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // THE FIX: Switched to v1beta and added "-latest" to guarantee it resolves
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
   
   const payload = {
     contents: [{
@@ -40,6 +40,12 @@ async function callGemini(morningStyle) {
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify(payload) 
     });
+    
+    if (!response.ok) {
+      console.error(`HTTP Error: ${response.status} - ${response.statusText}`);
+      return null;
+    }
+    
     const result = await response.json();
     return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
   } catch (err) { 
@@ -80,7 +86,7 @@ const QUESTIONS = [
 
 const TOTAL_QS = QUESTIONS.length;
 
-// --- Components ---
+// --- Sub-Components ---
 const ColorBlocks = ({ design, setDesign, editMode }) => {
   const absDivPos = design.boxLeft + ((100 - design.boxLeft - design.boxRight) * (design.dividerPos / 100));
   return (
