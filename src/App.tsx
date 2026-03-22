@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { 
-  ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check, MoveHorizontal, Download 
+  ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check, Download 
 } from 'lucide-react';
 
 // --- Configuration ---
@@ -23,14 +23,14 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (GUARANTEED ENDPOINT) ---
+// --- Gemini AI Helper (THE BULLETPROOF FETCH) ---
 async function callGemini(morningStyle) {
-  // THE FIX: Switched to v1beta and added "-latest" to guarantee it resolves
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  // Using simple string addition to prevent bundler string-parsing errors
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
   
   const payload = {
     contents: [{
-      parts: [{ text: `אתה קופירייטר שנון במגזין יוקרתי. כתוב טיפ קצר (עד 25 מילים) להורה שהבוקר שלו הוא: "${morningStyle}". הטיפ חייב לכלול עצה פרקטית וקריצה אלגנטית לשירות 'מהפכת הבוקר'. ענה בעברית בלבד ללא מרכאות.` }]
+      parts: [{ text: "אתה קופירייטר שנון במגזין יוקרתי. כתוב טיפ קצר (עד 25 מילים) להורה שהבוקר שלו הוא: " + morningStyle + ". הטיפ חייב לכלול עצה פרקטית וקריצה אלגנטית לשירות 'מהפכת הבוקר'. ענה בעברית בלבד ללא מרכאות." }]
     }]
   };
 
@@ -42,14 +42,14 @@ async function callGemini(morningStyle) {
     });
     
     if (!response.ok) {
-      console.error(`HTTP Error: ${response.status} - ${response.statusText}`);
+      console.error("HTTP Error:", response.status);
       return null;
     }
-    
+
     const result = await response.json();
     return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
   } catch (err) { 
-    console.error("Gemini Error:", err);
+    console.error("Fetch Error:", err);
     return null; 
   }
 }
@@ -194,9 +194,11 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), (snap) => {
-      setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (err) => console.error("Firestore error:", err));
+    try {
+        return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), (snap) => {
+            setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }, (err) => console.error("Firestore Listener Permission Error:", err));
+    } catch (e) { console.error(e); }
   }, [user]);
 
   const save = async (data) => {
