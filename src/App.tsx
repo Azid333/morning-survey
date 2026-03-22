@@ -23,15 +23,22 @@ const apiKey = "AIzaSyAXtc277vqC2dP8wOR3tHu1m8LUUe1mBJI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini API Helper ---
+// --- Gemini API Helper (Stable 2026) ---
 async function callGemini(prompt, systemInstruction = "") {
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   const payload = { contents: [{ parts: [{ text: `${systemInstruction}\n\n${prompt}` }] }] };
   try {
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const result = await response.json();
-    return result.candidates?.[0]?.content?.parts?.[0]?.text || "סליחה, משהו השתבש בייצור הטיפ.";
-  } catch (err) { return "שגיאת תקשורת עם ה-AI."; }
+    if (result.error) {
+      console.error("Gemini API Error:", result.error.message);
+      return null;
+    }
+    return result.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (err) { 
+    console.error("Network Error:", err);
+    return null; 
+  }
 }
 
 const INITIAL_DESIGN = {
@@ -66,7 +73,7 @@ const QUESTIONS = [
 
 const TOTAL_QS = QUESTIONS.length;
 
-// --- Components ---
+// --- Background Component ---
 const ColorBlocks = ({ design, setDesign, editMode }) => {
   const absDivPos = design.boxLeft + ((100 - design.boxLeft - design.boxRight) * (design.dividerPos / 100));
   return (
@@ -97,7 +104,6 @@ const AdminDashboard = ({ submissions, onClose, onDelete }) => {
     link.download = "morning_results.csv";
     link.click();
   };
-
   return (
     <div className="fixed inset-0 z-[200] bg-white p-8 md:p-16 text-right overflow-y-auto" dir="rtl">
       <div className="flex justify-between items-center mb-12 border-b-8 border-zinc-900 pb-8">
@@ -107,20 +113,9 @@ const AdminDashboard = ({ submissions, onClose, onDelete }) => {
           <button onClick={onClose} className="bg-zinc-900 text-white p-4"><X size={32}/></button>
         </div>
       </div>
-      <table className="w-full text-right">
-        <thead><tr className="bg-zinc-900 text-white">
-          <th className="p-4">שם</th><th className="p-4">טלפון</th><th className="p-4">עיר</th><th className="p-4"></th>
-        </tr></thead>
-        <tbody>
-          {submissions.map(s => (
-            <tr key={s.id} className="border-b">
-              <td className="p-4 font-bold">{s.isGuest ? 'אנונימי' : s.lead?.name}</td>
-              <td className="p-4">{s.lead?.phone || '-'}</td>
-              <td className="p-4">{s.household?.city}</td>
-              <td className="p-4"><button onClick={() => onDelete(s.id)} className="text-red-500"><Trash2 size={18}/></button></td>
-            </tr>
-          ))}
-        </tbody>
+      <table className="w-full text-right border-collapse">
+        <thead className="bg-zinc-900 text-white"><tr><th className="p-4">שם</th><th className="p-4">טלפון</th><th className="p-4">עיר</th><th className="p-4"></th></tr></thead>
+        <tbody>{submissions.map(s => (<tr key={s.id} className="border-b"><td className="p-4 font-bold">{s.isGuest ? 'GUEST' : s.lead?.name}</td><td className="p-4">{s.lead?.phone || '-'}</td><td className="p-4">{s.household?.city}</td><td className="p-4"><button onClick={() => onDelete(s.id)} className="text-red-500"><Trash2 size={18}/></button></td></tr>))}</tbody>
       </table>
     </div>
   );
@@ -148,7 +143,6 @@ const EditableText = ({ id, className, design, setDesign, editMode, editingId, s
   );
 };
 
-// --- Main App ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [step, setStep] = useState(0);
@@ -157,7 +151,6 @@ export default function App() {
   const [leadInfo, setLeadInfo] = useState({ name: '', phone: '', email: '' });
   const [submissions, setSubmissions] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiTip, setAiTip] = useState("");
   const [isGeneratingTip, setIsGeneratingTip] = useState(false);
   const [design, setDesign] = useState(INITIAL_DESIGN);
@@ -184,26 +177,21 @@ export default function App() {
 
   const save = async (data) => {
     if (!user) return;
-    setIsSubmitting(true);
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), {
         ...data, household, timestamp: new Date().toISOString(), userId: user.uid
       });
       setStep(TOTAL_QS + 3);
     } catch (err) { console.error(err); }
-    finally { setIsSubmitting(false); }
   };
 
   const generateTip = async () => {
     setIsGeneratingTip(true);
-    // Find the Answer Text from the questions array
-    const q1ID = QUESTIONS[0].id;
-    const selectedOptID = answers[q1ID];
-    const morningStyleText = QUESTIONS[0].options.find(o => o.id === selectedOptID)?.text || "רגיל";
-    
-    const prompt = `כתוב טיפ שנון להורה שהבוקר שלו מתואר כ-"${morningStyleText}". עד 25 מילים, כולל עצה להתארגנות וקריצה אלגנטית לשירות 'מהפכת הבוקר'.`;
-    const tip = await callGemini(prompt, "אתה קופירייטר שנון.");
-    setAiTip(tip);
+    const q1 = QUESTIONS[0];
+    const selectedText = q1.options.find(o => o.id === answers[q1.id])?.text || "בוקר רגיל";
+    const prompt = `כתוב טיפ שנון להורה שהבוקר שלו הוא "${selectedText}". עד 25 מילים, כולל עצה להתארגנות וקריצה לשירות 'מהפכת הבוקר'.`;
+    const result = await callGemini(prompt, "אתה קופירייטר שנון.");
+    setAiTip(result || "נראה שה-AI קצת עמוס כרגע. נסו שוב בעוד כמה שניות!");
     setIsGeneratingTip(false);
   };
 
@@ -230,7 +218,7 @@ export default function App() {
 
       {showPinPrompt && (
         <div className="fixed inset-0 z-[1000] bg-black/60 flex items-center justify-center" dir="rtl">
-          <div className="bg-white p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white p-8 max-w-sm w-full shadow-2xl">
             <h3 className="text-2xl font-black mb-4 italic uppercase">Admin_Access.</h3>
             <form onSubmit={(e) => { e.preventDefault(); if (pinInput === '2002') { setIsAdminUnlocked(true); setShowPinPrompt(false); } }}>
               <input type="password" autoFocus className="w-full p-4 bg-zinc-50 border-b-4 mb-4 text-center text-3xl" value={pinInput} onChange={e => setPinInput(e.target.value)} placeholder="••••" />
@@ -247,7 +235,7 @@ export default function App() {
         </>
       )}
 
-      <div className="fixed inset-0 m-auto h-[100vh] md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white" style={{ left: `${design.boxLeft}vw`, right: `${design.boxRight}vw` }}>
+      <div className="fixed inset-0 m-auto h-[100vh] md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white transition-all duration-300" style={{ left: `${design.boxLeft}vw`, right: `${design.boxRight}vw` }}>
         
         <div style={{ width: `${design.dividerPos}%` }} className="bg-zinc-50 flex flex-col p-6 md:p-10 relative overflow-hidden h-1/3 md:h-full flex-shrink-0" dir="ltr">
            <div className="absolute inset-0 bg-cover bg-center opacity-25 grayscale pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542310503-68f76378e9f5?q=80&w=2000')" }} />
@@ -301,7 +289,7 @@ export default function App() {
           )}
 
           {step >= 2 && step <= TOTAL_QS + 1 && (
-            <div className="w-full max-w-3xl mx-auto">
+            <div className="w-full max-w-3xl mx-auto text-right">
                <div className="w-full flex gap-1 mb-6">{QUESTIONS.map((_, i) => (<div key={i} className={`h-1.5 flex-1 ${i < (step - 1) ? 'bg-zinc-900' : 'bg-zinc-100'}`} />))}</div>
                <div className="mb-6"><span className="font-black text-[#E85D75] text-xl block mb-2">{step - 1}_</span><h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tighter text-zinc-900 leading-tight uppercase">{QUESTIONS[step-2].text}</h3></div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{QUESTIONS[step-2].options.map((opt) => (
@@ -327,17 +315,17 @@ export default function App() {
           )}
 
           {step === TOTAL_QS + 3 && (
-            <div className="h-full flex flex-col justify-center">
+            <div className="h-full flex flex-col justify-center text-right">
                <h2 className="text-[6vw] md:text-[5vw] font-black italic text-[#00A896] uppercase tracking-tighter">PROFILE_READY_</h2>
                <div className="flex flex-col gap-6 pt-6">
-                  <div><p className="text-4xl font-black mb-2 uppercase italic text-right">{answers[QUESTIONS[0].id] === 'A' || answers[QUESTIONS[0].id] === 'D' ? 'ZEN_MODEL' : 'PULSE_MODEL'}</p></div>
+                  <div><p className="text-4xl font-black mb-2 uppercase italic">{answers[QUESTIONS[0].id] === 'A' || answers[QUESTIONS[0].id] === 'D' ? 'ZEN_MODEL' : 'PULSE_MODEL'}</p></div>
                   <div className="w-full bg-zinc-900 text-white p-6 rounded-xl shadow-xl min-h-[140px] flex flex-col justify-center relative overflow-hidden">
                      {!aiTip ? (
                        <button onClick={generateTip} disabled={isGeneratingTip} className="w-full py-4 bg-[#F9A620]/10 text-[#F9A620] font-black uppercase border border-[#F9A620]/30 rounded-lg hover:bg-[#F9A620] hover:text-black transition-all">
                           {isGeneratingTip ? <Loader2 size={24} className="animate-spin m-auto" /> : <>✨ קבלו ניתוח AI לשגרת הבוקר שלכם</>}
                        </button>
                      ) : (
-                       <div className="flex flex-col gap-2"><span className="text-[10px] font-black text-[#F9A620] uppercase tracking-widest text-right">AI_Lifestyle_Hack</span><p className="text-base italic border-r-4 border-[#F9A620]/50 pr-4 text-zinc-300 text-right">"{aiTip}"</p></div>
+                       <div className="flex flex-col gap-2"><span className="text-[10px] font-black text-[#F9A620] uppercase tracking-widest">AI_Lifestyle_Hack</span><p className="text-base italic border-r-4 border-[#F9A620]/50 pr-4 text-zinc-300">"{aiTip}"</p></div>
                      )}
                   </div>
                </div>
