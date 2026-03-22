@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { 
-  ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check, Download 
+  ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check, MoveHorizontal, Download 
 } from 'lucide-react';
 
 // --- Configuration ---
@@ -23,10 +23,13 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (THE BULLETPROOF FETCH) ---
-async function callGemini(morningStyle) {
-  // Using simple string addition to prevent bundler string-parsing errors
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+// --- Gemini AI Helper (CACHE BUSTER VERSION) ---
+async function fetchFreshGeminiTip(morningStyle) {
+  // We add a random timestamp to force the browser to skip its cache
+  const cacheBust = new Date().getTime();
+  
+  // We use the exact, hardcoded V1 endpoint and bypass bundler string issues
+  const aiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + apiKey + "&t=" + cacheBust;
   
   const payload = {
     contents: [{
@@ -35,14 +38,14 @@ async function callGemini(morningStyle) {
   };
 
   try {
-    const response = await fetch(url, { 
+    const response = await fetch(aiEndpoint, { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify(payload) 
     });
     
     if (!response.ok) {
-      console.error("HTTP Error:", response.status);
+      console.error("HTTP Error:", response.status, await response.text());
       return null;
     }
 
@@ -109,7 +112,7 @@ const AdminDashboard = ({ submissions, onClose, onDelete }) => {
     let csv = "\uFEFFתאריך,שם,טלפון,אימייל,עיר,ילדים,תשובות\n";
     submissions.forEach(s => {
       const cStr = s.household?.children?.map(c => `${c.age}(${c.school})`).join(' | ') || '';
-      csv += `${new Date(s.timestamp).toLocaleString()},${s.lead?.name || 'אנונימי'},${s.lead?.phone || ''},${s.lead?.email || ''},${s.household?.city || ''},"${cStr}","${JSON.stringify(s.answers)}"\n`;
+      csv += `${new Date(s.timestamp).toLocaleString()},${s.lead?.name || 'אנונימי'},${s.lead?.phone || ''},${s.lead?.email || ''},${s.household?.city || ''},"${cStr}","${JSON.stringify(s.answers).replace(/"/g, '""')}"\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -217,7 +220,9 @@ export default function App() {
     setIsGeneratingTip(true);
     const q1ID = QUESTIONS[0].id;
     const styleText = QUESTIONS[0].options.find(o => o.id === answers[q1ID])?.text || "רגיל";
-    const result = await callGemini(styleText);
+    
+    const result = await fetchFreshGeminiTip(styleText);
+    
     setAiTip(result || "נראה שה-AI קצת עמוס כרגע. נסו שוב!");
     setIsGeneratingTip(false);
   };
