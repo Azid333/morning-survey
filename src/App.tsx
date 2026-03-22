@@ -1,34 +1,19 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, query, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import {
-  ChevronRight,
-  LayoutDashboard,
-  ArrowRight,
-  Plus,
-  Sparkles,
-  Loader2,
-  Quote,
-  X,
-  Palette,
-  MoveHorizontal,
-  Check,
-  Settings,
-  Trash2,
-  Download,
-  Lock
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { 
+  ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check
 } from 'lucide-react';
 
-// --- Firebase & Gemini Configuration ---
+// --- Configuration ---
 const firebaseConfig = {
   apiKey: "AIzaSyDLYv9I5teKj4a_0O0-YFqCtpGcLLjduPg",
   authDomain: "morning-program-f3704.firebaseapp.com",
   projectId: "morning-program-f3704",
   storageBucket: "morning-program-f3704.firebasestorage.app",
   messagingSenderId: "182910675825",
-  appId: "1:182910675825:web:a3c69fa1b75987652264d0",
-  measurementId: "G-RJG9HBML14"
+  appId: "1:182910675825:web:a3c69fa1b75987652264d0"
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -36,33 +21,21 @@ const db = getFirestore(app);
 const appId = 'morning-program-f3704';
 const apiKey = "AIzaSyAXtc277vqC2dP8wOR3tHu1m8LUUe1mBJI";
 
-// --- Gemini API Helper (Fixed Model & Endpoint) ---
+const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
+
+// --- Gemini API Helper (Fixed) ---
 async function callGemini(prompt, systemInstruction = "") {
   const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const payload = {
-    contents: [{ 
-      parts: [{ text: `${systemInstruction}\n\nUser Request: ${prompt}` }] 
-    }]
-  };
+  const payload = { contents: [{ parts: [{ text: `${systemInstruction}\n\n${prompt}` }] }] };
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const result = await response.json();
-    return result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  } catch (err) { 
-    console.error("Gemini Error:", err);
-    return ""; 
-  }
+    return result.candidates?.[0]?.content?.parts?.[0]?.text || "סליחה, משהו השתבש בייצור הטיפ.";
+  } catch (err) { return "שגיאת תקשורת עם ה-AI."; }
 }
 
-// --- Default Design Values ---
 const INITIAL_DESIGN = {
-  boxLeft: 3,    
-  boxRight: 3,   
-  dividerPos: 40,
+  boxLeft: 3, boxRight: 3, dividerPos: 40,
   bgColors: ['#00A896', '#E85D75', '#F9A620'],
   elements: {
     engTitle: { text: "THE\nMORNING.", size: 2.8, color: '#18181b', visible: true },
@@ -74,7 +47,6 @@ const INITIAL_DESIGN = {
   }
 };
 
-// --- Survey Data ---
 const QUESTIONS = [
   { id: 1, text: "איך נראה הבוקר שלכם בדרך כלל?", options: [{ id: 'A', text: "🎯 מתוקתק בשליטה" }, { id: 'B', text: "🏃‍♂️ ריצת אמוק" }, { id: 'C', text: "🤝 משא ומתן תמידי" }, { id: 'D', text: "🧘‍♂️ בוקר של זן" }] },
   { id: 2, text: "מי אחראי על הפיזורים?", options: [{ id: 'mom', text: "👩 אמא" }, { id: 'dad', text: "👨 אבא" }, { id: 'grand', text: "👵 סבא/סבתא" }, { id: 'nanny', text: "🧑‍🍼 בייביסיטר" }, { id: 'alone', text: "🚶‍♂️ הולכים לבד" }] },
@@ -94,87 +66,45 @@ const QUESTIONS = [
 
 const TOTAL_QS = QUESTIONS.length;
 
-// --- Background Component ---
-const ColorBlocks = ({ design, setDesign, editMode }) => {
+// --- Components ---
+const ColorBlocks = ({ design }) => {
   const absDivPos = design.boxLeft + ((100 - design.boxLeft - design.boxRight) * (design.dividerPos / 100));
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none flex overflow-hidden">
-      <div style={{ width: `${absDivPos}vw`, backgroundColor: design.bgColors[0] }} className="h-full relative pointer-events-auto transition-none" />
-      <div style={{ width: '30%', backgroundColor: design.bgColors[1] }} className="h-full relative pointer-events-auto transition-none" />
-      <div className="flex-1 h-full relative pointer-events-auto transition-none" style={{ backgroundColor: design.bgColors[2] }} />
+    <div className="fixed inset-0 z-0 flex overflow-hidden pointer-events-none">
+      <div style={{ width: `${absDivPos}vw`, backgroundColor: design.bgColors[0] }} className="h-full" />
+      <div style={{ width: '30%', backgroundColor: design.bgColors[1] }} className="h-full" />
+      <div className="flex-1 h-full" style={{ backgroundColor: design.bgColors[2] }} />
     </div>
   );
 };
 
-// --- Admin Dashboard ---
-const AdminDashboard = ({ submissions, onClose, onDelete }) => {
-  return (
-    <div className="fixed inset-0 z-[200] bg-white p-16 text-right font-sans text-zinc-900 overflow-y-auto" dir="rtl">
-      <header className="mb-24 flex justify-between items-end border-b-[30px] border-zinc-900 pb-10">
-        <h1 className="text-[12vw] font-black italic uppercase">Archive.</h1>
-        <button onClick={onClose} className="bg-zinc-900 text-white p-6"><X size={40} /></button>
-      </header>
-      <table className="w-full text-right border-collapse">
-          <thead><tr className="bg-zinc-900 text-white uppercase"><th className="p-6">Name</th><th className="p-6">Phone</th><th className="p-6">City</th><th className="p-6 w-16"></th></tr></thead>
-          <tbody>
-              {submissions.map((s) => (
-                  <tr key={s.id} className="border-b border-zinc-100">
-                      <td className="p-6 font-bold">{s.isGuest ? 'GUEST' : s.lead?.name}</td>
-                      <td className="p-6">{s.isGuest ? '-' : s.lead?.phone}</td>
-                      <td className="p-6">{s.household?.city || '-'}</td>
-                      <td className="p-6"><button onClick={() => onDelete(s.id)} className="text-zinc-300 hover:text-red-500"><Trash2 size={18} /></button></td>
-                  </tr>
-              ))}
-          </tbody>
-      </table>
-    </div>
-  );
-};
-
-// --- Editable Text Component ---
-const EditableText = ({ id, className, design, setDesign, editMode, editingId, setEditingId, isRem = false }) => {
+const EditableText = ({ id, className, design, isRem = false }) => {
   const el = design.elements[id];
   if (!el || !el.visible) return null;
   const unit = isRem ? 'rem' : 'vw';
-  return (
-    <div className="relative inline-block w-full">
-      <div 
-        onClick={(e) => { if (editMode) { e.stopPropagation(); setEditingId(id); } }}
-        style={{ fontSize: `${el.size}${unit}`, color: el.color }}
-        className={`${className} ${editMode ? 'cursor-pointer hover:bg-black/5' : ''}`}
-      >
-        {el.text}
-      </div>
-    </div>
-  );
+  return <div style={{ fontSize: `${el.size}${unit}`, color: el.color }} className={className}>{el.text}</div>;
 };
 
-// --- Main App ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [household, setHousehold] = useState({ city: '', children: [{ id: Date.now(), age: '', school: '' }] });
-  const [leadInfo, setLeadInfo] = useState({ name: '', phone: '' });
+  const [leadInfo, setLeadInfo] = useState({ name: '', phone: '', email: '' });
   const [submissions, setSubmissions] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiTip, setAiTip] = useState("");
   const [isGeneratingTip, setIsGeneratingTip] = useState(false);
   const [design, setDesign] = useState(INITIAL_DESIGN);
-  const [editMode, setEditMode] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [dragState, setDragState] = useState(null);
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [secretClicks, setSecretClicks] = useState(0);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinInput, setPinInput] = useState("");
 
-  const handleSecretClick = () => { if (secretClicks + 1 >= 5) { setShowPinPrompt(true); return 0; } return secretClicks + 1; };
-  
   useEffect(() => {
     onAuthStateChanged(auth, setUser);
-    signInAnonymously(auth).catch(console.error);
+    signInAnonymously(auth);
   }, []);
 
   useEffect(() => {
@@ -184,11 +114,6 @@ export default function App() {
     });
     return () => unsub();
   }, [user]);
-
-  const handleOptionSelect = (qId, optId) => {
-    setAnswers(prev => ({ ...prev, [qId]: optId }));
-    setTimeout(() => setStep(prev => prev + 1), 250);
-  };
 
   const save = async (data) => {
     if (!user) return;
@@ -204,78 +129,78 @@ export default function App() {
 
   const generateTip = async () => {
     setIsGeneratingTip(true);
-    const morningStyle = QUESTIONS.find(q => q.id === 1)?.options.find(o => o.id === answers[1])?.text || "רגיל";
-    const prompt = `כתוב טיפ פרקטי, קצר ושנון (עד 25 מילים) להורה שהבוקר שלו מתואר כ-"${morningStyle}". הטיפ חייב לכלול עצה קטנה ושימושית אמיתית להתארגנות בוקר, ובסוף קריצה אלגנטית לכך שאת ארוחת העשר לבית הספר פשוט אוספים בדרך עם 'מהפכת הבוקר'.`;
-    const tip = await callGemini(prompt, "אתה קופירייטר שנון. ענה בעברית ללא מרכאות.");
+    const morningStyle = QUESTIONS[0].options.find(o => o.id === answers[1])?.text || "רגיל";
+    const prompt = `כתוב טיפ שנון להורה שהבוקר שלו הוא "${morningStyle}". עד 25 מילים, כולל עצה להתארגנות וקריצה לשירות 'מהפכת הבוקר'.`;
+    const tip = await callGemini(prompt, "אתה קופירייטר שנון.");
     setAiTip(tip);
     setIsGeneratingTip(false);
   };
 
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center font-sans overflow-x-hidden relative">
-      <ColorBlocks design={design} setDesign={setDesign} editMode={editMode} />
-      <div onClick={() => setSecretClicks(handleSecretClick())} className="fixed bottom-0 left-0 w-12 h-12 z-[9999]" />
+      <ColorBlocks design={design} />
+      <div onClick={() => setSecretClicks(s => s + 1 >= 5 ? (setShowPinPrompt(true), 0) : s + 1)} className="fixed bottom-0 left-0 w-12 h-12 z-[9999]" />
 
       {showPinPrompt && (
         <div className="fixed inset-0 z-[1000] bg-black/60 flex items-center justify-center" dir="rtl">
           <div className="bg-white p-8 max-w-sm w-full shadow-2xl">
-            <h3 className="text-2xl font-black mb-4 italic">Admin_Access.</h3>
+            <h3 className="text-2xl font-black mb-4 italic uppercase">Admin_Access.</h3>
             <form onSubmit={(e) => { e.preventDefault(); if (pinInput === '2002') { setIsAdminUnlocked(true); setShowPinPrompt(false); } }}>
               <input type="password" autoFocus className="w-full p-4 bg-zinc-50 border-b-4 mb-4 text-center text-3xl" value={pinInput} onChange={e => setPinInput(e.target.value)} placeholder="••••" />
-              <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black">Unlock</button>
+              <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black uppercase">Unlock</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Main Responsive Container */}
-      <div 
-        className="fixed inset-0 m-auto h-[100vh] md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white"
-        style={{ left: `${design.boxLeft}vw`, right: `${design.boxRight}vw` }}
-      >
-        {/* Left Branding Side */}
+      <div className="fixed inset-0 m-auto h-[100vh] md:h-[88vh] z-10 flex flex-col md:flex-row overflow-hidden shadow-2xl bg-white" style={{ left: `${design.boxLeft}vw`, right: `${design.boxRight}vw` }}>
+        
+        {/* Left Branding */}
         <div style={{ width: `${design.dividerPos}%` }} className="bg-zinc-50 flex flex-col p-6 md:p-10 relative overflow-hidden h-1/3 md:h-full flex-shrink-0" dir="ltr">
-           <div className="absolute inset-0 bg-cover bg-center mix-blend-multiply opacity-25 grayscale pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542310503-68f76378e9f5?q=80&w=2000')" }} />
+           <div className="absolute inset-0 bg-cover bg-center opacity-25 grayscale pointer-events-none" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542310503-68f76378e9f5?q=80&w=2000')" }} />
            <div className="mt-auto relative z-10 w-full">
-              <EditableText id="engTitle" className="font-black tracking-tighter leading-[0.75] mb-6 italic uppercase whitespace-pre-wrap" design={design} setDesign={setDesign} editMode={editMode} editingId={editingId} setEditingId={setEditingId} />
-              <div className="space-y-4 border-t-[6px] border-zinc-900 pt-4 max-w-[90%]"><EditableText id="engSub" className="font-black leading-tight uppercase tracking-tighter" isRem={true} design={design} setDesign={setDesign} editMode={editMode} editingId={editingId} setEditingId={setEditingId} /></div>
+              <EditableText id="engTitle" className="font-black tracking-tighter leading-[0.75] mb-6 italic uppercase whitespace-pre-wrap" design={design} />
+              <div className="space-y-4 border-t-[6px] border-zinc-900 pt-4 max-w-[90%]"><EditableText id="engSub" className="font-black leading-tight uppercase tracking-tighter" isRem={true} design={design} /></div>
            </div>
         </div>
 
-        {/* Right Content Side (Hebrew) */}
+        {/* Right Content */}
         <div className="flex-1 p-6 md:p-12 flex flex-col justify-center text-right border-r border-zinc-100 relative overflow-y-auto min-w-0" dir="rtl">
+          
           {step === 0 && (
             <div className="animate-in fade-in slide-in-from-right-12 duration-1000">
-               <div className="flex items-center gap-4 mb-6"><div className="h-0.5 w-12 bg-zinc-900" /><EditableText id="heTag" className="font-black uppercase tracking-widest italic text-zinc-400" isRem={true} design={design} setDesign={setDesign} editMode={editMode} editingId={editingId} setEditingId={setEditingId} /></div>
-               <div className="mb-6"><EditableText id="heTitle" className="font-black leading-[0.85] tracking-tighter uppercase italic whitespace-pre-wrap" design={design} setDesign={setDesign} editMode={editMode} editingId={editingId} setEditingId={setEditingId} /></div>
-               <div className="mb-10"><EditableText id="heSub" className="font-black leading-tight tracking-tight italic uppercase" design={design} setDesign={setDesign} editMode={editMode} editingId={editingId} setEditingId={setEditingId} /></div>
-               <div className="flex items-center gap-4 p-1 border-b-4 border-transparent hover:border-zinc-900 transition-all w-fit cursor-pointer group" onClick={() => setStep(1)}>
-                  <EditableText id="beginBtn" className="font-black italic tracking-tighter uppercase group-hover:opacity-70" isRem={true} design={design} setDesign={setDesign} editMode={editMode} editingId={editingId} setEditingId={setEditingId} />
+               <div className="flex items-center gap-4 mb-6"><div className="h-0.5 w-12 bg-zinc-900" /><EditableText id="heTag" className="font-black uppercase tracking-widest italic text-zinc-400" isRem={true} design={design} /></div>
+               <div className="mb-6"><EditableText id="heTitle" className="font-black leading-[0.85] tracking-tighter uppercase italic whitespace-pre-wrap" design={design} /></div>
+               <div className="mb-10"><EditableText id="heSub" className="font-black leading-tight tracking-tight italic uppercase" design={design} /></div>
+               <button onClick={() => setStep(1)} className="flex items-center gap-4 p-1 border-b-4 border-transparent hover:border-zinc-900 transition-all w-fit group">
+                  <EditableText id="beginBtn" className="font-black italic tracking-tighter uppercase group-hover:opacity-70" isRem={true} design={design} />
                   <div className="w-10 h-10 bg-zinc-900 text-white flex items-center justify-center group-hover:translate-x-[-6px]"><ArrowRight size={20} className="rotate-180" /></div>
-               </div>
+               </button>
             </div>
           )}
 
           {step === 1 && (
             <div className="w-full max-w-3xl mx-auto text-right">
                <h2 className="text-4xl font-black italic mb-3 uppercase">THE_CREW.</h2>
-               <p className="font-black italic mb-6 text-zinc-900">כדי שנוכל לנתח את פרופיל הבוקר שלכם במדויק, ספרו לנו מי בצוות.</p>
                <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-4">
                   <div className="bg-zinc-50 border-r-4 border-[#00A896] p-4">
                     <label className="block text-xs font-black uppercase tracking-widest text-[#00A896] mb-1">עיר מגורים</label>
-                    <input required className="bg-transparent border-b-2 border-zinc-200 outline-none font-bold w-full py-1" value={household.city} onChange={e => setHousehold({...household, city: e.target.value})} />
+                    <select required className="bg-transparent border-b-2 border-zinc-200 outline-none font-bold w-full py-1 text-lg" value={household.city} onChange={e => setHousehold({...household, city: e.target.value})}>
+                      <option value="">בחר עיר...</option>
+                      {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                   <div className="space-y-3">
                     {household.children.map((child) => (
                       <div key={child.id} className="flex gap-3 bg-zinc-50 border-r-4 border-zinc-100 p-3">
-                        <input required placeholder="גיל" className="bg-transparent border-b border-zinc-200 w-24" value={child.age} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, age: e.target.value} : c)}))} />
-                        <input required placeholder="בית ספר" className="bg-transparent border-b border-zinc-200 w-full" value={child.school} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, school: e.target.value} : c)}))} />
+                        <input required type="number" min="6" max="18" placeholder="גיל (6-18)" className="bg-transparent border-b border-zinc-200 w-32 font-bold" value={child.age} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, age: e.target.value} : c)}))} />
+                        <input required placeholder="שם בית ספר" className="bg-transparent border-b border-zinc-200 w-full font-bold" value={child.school} onChange={e => setHousehold(h => ({...h, children: h.children.map(c => c.id === child.id ? {...c, school: e.target.value} : c)}))} />
                         {household.children.length > 1 && (<button type="button" onClick={() => setHousehold(h => ({...h, children: h.children.filter(c => c.id !== child.id)}))}><Trash2 size={16}/></button>)}
                       </div>
                     ))}
                   </div>
-                  <button type="button" onClick={() => setHousehold(h => ({...h, children: [...h.children, {id: Date.now(), age: '', school: ''}]}))} className="text-[#E85D75] font-bold text-xs">+ הוספת ילד</button>
-                  <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black text-xl flex items-center justify-center gap-3">לשאלון <ArrowRight size={20} /></button>
+                  <button type="button" onClick={() => setHousehold(h => ({...h, children: [...h.children, {id: Date.now(), age: '', school: ''}]}))} className="text-[#E85D75] font-bold text-xs uppercase tracking-widest">+ ADD_CHILD</button>
+                  <button type="submit" className="w-full py-4 bg-zinc-900 text-white font-black text-xl flex items-center justify-center gap-3 shadow-xl">CONTINUE_TO_SURVEY <ArrowRight size={20} /></button>
                </form>
             </div>
           )}
@@ -283,34 +208,37 @@ export default function App() {
           {step >= 2 && step <= TOTAL_QS + 1 && (
             <div className="w-full max-w-3xl mx-auto">
                <div className="w-full flex gap-1 mb-6">{QUESTIONS.map((_, i) => (<div key={i} className={`h-1.5 flex-1 ${i < (step - 1) ? 'bg-zinc-900' : 'bg-zinc-100'}`} />))}</div>
-               <div className="mb-6"><span className="font-black text-[#E85D75] text-xl block mb-2">{step - 1}_</span><h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tighter text-zinc-900 leading-tight uppercase">{QUESTIONS[step-2].text}</h3></div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{QUESTIONS[step-2].options.map((opt) => (<button key={opt.id} onClick={() => handleOptionSelect(QUESTIONS[step-2].id, opt.id)} className="p-4 md:p-5 text-right border-r-[8px] bg-zinc-50 border-zinc-100 hover:border-zinc-900 hover:bg-zinc-900 hover:text-white transition-all font-black text-lg">{opt.text}</button>))}</div>
+               <div className="mb-6 text-[#E85D75] font-black text-xl uppercase italic">{step - 1}_ <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tighter text-zinc-900 leading-tight uppercase inline-block ml-2">{QUESTIONS[step-2].text}</h3></div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{QUESTIONS[step-2].options.map((opt) => (<button key={opt.id} onClick={() => setAnswers(prev => ({ ...prev, [QUESTIONS[step-2].id]: opt.id }), setTimeout(() => setStep(s => s + 1), 250))} className="p-4 md:p-5 text-right border-r-[8px] bg-zinc-50 border-zinc-100 hover:border-zinc-900 hover:bg-zinc-900 hover:text-white font-black text-lg transition-all">{opt.text}</button>))}</div>
             </div>
           )}
 
           {step === TOTAL_QS + 2 && (
             <div className="w-full max-w-3xl mx-auto">
-               <h2 className="text-5xl font-black italic mb-3">THE_JOIN.</h2>
+               <h2 className="text-5xl font-black italic mb-3 uppercase tracking-tighter">THE_JOIN.</h2>
+               <p className="text-lg font-black italic mb-8 text-zinc-900 uppercase">JOIN_THE_ALPHA_PILOT.</p>
                <form onSubmit={(e) => { e.preventDefault(); save({ answers, lead: leadInfo, isGuest: false }); }} className="space-y-4">
-                  <input required placeholder="שם מלא" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic" value={leadInfo.name} onChange={e => setLeadInfo({...leadInfo, name: e.target.value})} />
-                  <input required placeholder="טלפון / וואטסאפ" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic" value={leadInfo.phone} onChange={e => setLeadInfo({...leadInfo, phone: e.target.value})} />
-                  <button className="w-full py-5 bg-zinc-900 text-white font-black text-2xl italic hover:bg-[#E85D75] transition-all">RESERVE_MY_SPOT_</button>
+                  <input required placeholder="שם מלא (פרטי ומשפחה)" pattern="^\s*\S+\s+\S+.*$" title="יש להזין שם פרטי ושם משפחה" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic" value={leadInfo.name} onChange={e => setLeadInfo({...leadInfo, name: e.target.value})} />
+                  <input required type="tel" pattern="^05\d-?\d{7}$" title="מספר טלפון ישראלי תקין (למשל: 0501234567)" placeholder="טלפון / וואטסאפ (05X-XXXXXXX)" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic" value={leadInfo.phone} onChange={e => setLeadInfo({...leadInfo, phone: e.target.value})} />
+                  <input required type="email" placeholder="כתובת אימייל" className="p-4 bg-zinc-50 border-r-[6px] w-full font-black text-lg italic" value={leadInfo.email} onChange={e => setLeadInfo({...leadInfo, email: e.target.value})} />
+                  <button className="w-full py-5 bg-zinc-900 text-white font-black text-2xl italic hover:bg-[#E85D75] shadow-xl uppercase">RESERVE_MY_SPOT_</button>
                </form>
+               <button onClick={() => save({ answers, isGuest: true })} className="mt-6 text-zinc-300 text-[10px] font-black uppercase underline block hover:text-zinc-900 transition-colors">Continue anonymously</button>
             </div>
           )}
 
           {step === TOTAL_QS + 3 && (
             <div className="h-full flex flex-col justify-center">
-               <h2 className="text-[6vw] md:text-[5vw] font-black italic text-[#00A896]">PROFILE_READY_</h2>
-               <div className="flex flex-col gap-6 border-t-[8px] border-zinc-900 pt-6">
+               <h2 className="text-[6vw] md:text-[5vw] font-black italic text-[#00A896] uppercase tracking-tighter">PROFILE_READY_</h2>
+               <div className="flex flex-col gap-6 pt-6">
                   <div><p className="text-4xl font-black mb-2 uppercase italic">{answers[1] === 'A' || answers[1] === 'D' ? 'ZEN_MODEL' : 'PULSE_MODEL'}</p></div>
-                  <div className="w-full bg-zinc-900 text-white p-6 rounded-xl shadow-xl min-h-[140px] flex flex-col justify-center">
+                  <div className="w-full bg-zinc-900 text-white p-6 rounded-xl shadow-xl min-h-[140px] flex flex-col justify-center relative overflow-hidden">
                      {!aiTip ? (
                        <button onClick={generateTip} disabled={isGeneratingTip} className="w-full py-4 bg-[#F9A620]/10 text-[#F9A620] font-black uppercase border border-[#F9A620]/30 rounded-lg hover:bg-[#F9A620] hover:text-black">
                           {isGeneratingTip ? <Loader2 size={24} className="animate-spin m-auto" /> : <>✨ קבלו ניתוח AI לשגרת הבוקר שלכם</>}
                        </button>
                      ) : (
-                       <div className="flex flex-col gap-2"><span className="text-[10px] font-black text-[#F9A620]">AI_Lifestyle_Hack</span><p className="text-base italic border-r-4 border-[#F9A620]/50 pr-4 text-zinc-300">"{aiTip}"</p></div>
+                       <div className="flex flex-col gap-2"><span className="text-[10px] font-black text-[#F9A620] uppercase tracking-widest">AI_Lifestyle_Hack</span><p className="text-base italic border-r-4 border-[#F9A620]/50 pr-4 text-zinc-300">"{aiTip}"</p></div>
                      )}
                   </div>
                </div>
