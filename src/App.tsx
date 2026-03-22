@@ -23,10 +23,10 @@ const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0ynDUlsihXcNI";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
-// --- Gemini AI Helper (THE FINAL FIX) ---
+// --- Gemini AI Helper (UPDATED TO GEMINI 3) ---
 async function callGemini(morningStyle) {
-  // Removed the ?cb= parameter that Google rejected. URL is now clean.
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey;
+  // THE FIX: Pointing to the new gemini-3-flash model
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=" + apiKey;
   
   const payload = {
     contents: [{
@@ -37,10 +37,7 @@ async function callGemini(morningStyle) {
   try {
     const response = await fetch(url, { 
       method: 'POST', 
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache' // Safe way to bypass browser cache
-      }, 
+      headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify(payload) 
     });
     
