@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'morning-program-f3704';
-const apiKey = "AIzaSyDsgxCymmAd51K_0gVg4f0AIzaSyBTpaxSebi2xxlgDIDngd1pjCfbklJ6BUU";
+const apiKey = "AIzaSyBTpaxSebi2xxlgDIDngd1pjCfbklJ6BUU";
 
 const CITIES = ["הרצליה", "תל אביב", "רמת גן", "גבעתיים", "רעננה", "כפר סבא", "הוד השרון", "רמת השרון", "ראשון לציון", "סביון", "בת ים", "חולון", "נס ציונה", "רחובות", "נתניה", "מודיעין / מכבים-רעות", "פתח תקוה", "קרית אונו", "ירושלים", "חיפה"];
 
