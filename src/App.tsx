@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -372,6 +373,10 @@ export default function App() {
         </div>
       )}
       {showAdmin && <AdminDashboard submissions={submissions} onClose={() => setShowAdmin(false)} onDelete={id => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'survey_results', id))} />}
+      
+      {/* VERCEL ANALYTICS TAG GOES HERE */}
+      <Analytics />
+
     </div>
   );
 }
