@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { 
   ArrowRight, Plus, Loader2, X, Palette, LayoutDashboard, Trash2, Settings, Lock, Check, MoveHorizontal, Download 
 } from 'lucide-react';
@@ -206,7 +206,8 @@ export default function App() {
     if (!user) return;
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'survey_results'), {
+      // setDoc guarantees one row per user.uid. Duplicates are overwritten.
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'survey_results', user.uid), {
         ...data, household, timestamp: new Date().toISOString(), userId: user.uid
       });
       setStep(TOTAL_QS + 3);
